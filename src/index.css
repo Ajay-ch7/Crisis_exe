@@ -1,0 +1,394 @@
+@import "tailwindcss";
+
+/* ============================================================
+   CRISIS.EXE — STITCH HUD DESIGN SYSTEM
+   Orbital Telemetry & Incident Command Aesthetic
+   ============================================================ */
+
+/* ── Tailwind Theme Extensions ── */
+@theme {
+  --color-cyber-dark:    #03070d;
+  --color-cyber-panel:   rgba(5, 15, 29, 0.88);
+  --color-cyber-border:  rgba(0, 240, 255, 0.28);
+  --color-cyan:          #00f0ff;
+  --color-cyan-glow:     #00c8d7;
+  --color-amber:         #ffaa00;
+  --color-alert:         #ff2a55;
+  --color-success:       #00ff88;
+
+  --font-orbitron:       'Orbitron', sans-serif;
+  --font-tactical:       'Chakra Petch', sans-serif;
+  --font-mono-hud:       'Share Tech Mono', monospace;
+
+  --animate-spin-slow:    spin-slow 50s linear infinite;
+  --animate-spin-reverse: spin-reverse 40s linear infinite;
+  --animate-radar-sweep:  radar 4s linear infinite;
+  --animate-pulse-fast:   pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-scanline:     scanline 8s linear infinite;
+  --animate-strobe-red:   strobe-red 1.2s ease-in-out infinite;
+  --animate-flicker:      flicker 3s linear infinite;
+}
+
+/* ── Keyframes ── */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+@keyframes radar {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes scanline {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(1000%); }
+}
+@keyframes strobe-red {
+  0%, 100% { border-color: rgba(255,42,85,0.6); box-shadow: 0 0 20px rgba(255,42,85,0.3); }
+  50%       { border-color: #ff2a55;             box-shadow: 0 0 40px rgba(255,42,85,0.55); }
+}
+@keyframes flicker {
+  0%,19%,21%,23%,25%,54%,56%,100% { opacity: 1; }
+  20%,24%,55%                      { opacity: 0.6; }
+}
+@keyframes score-count-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slide-in-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes glow-pulse-cyan {
+  0%,100% { box-shadow: 0 0 8px rgba(0,240,255,0.35), 0 0 20px rgba(0,240,255,0.15); }
+  50%     { box-shadow: 0 0 16px rgba(0,240,255,0.6), 0 0 40px rgba(0,240,255,0.25); }
+}
+
+/* ── Base Reset ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #03070d;
+  color: #b8e1fc;
+  font-family: 'Chakra Petch', sans-serif;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ── Global Telemetry Grid Background ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(0,240,255,0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,240,255,0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── CRT Scanline Overlay ── */
+body::after {
+  content: ' ';
+  display: block;
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.22) 50%),
+    linear-gradient(90deg, rgba(255,0,0,0.025), rgba(0,255,0,0.01), rgba(0,0,255,0.025));
+  background-size: 100% 3px, 3px 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.55;
+}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #03070d; }
+::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.3); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.6); }
+
+/* ── Tactical Panel Containers ── */
+.tactical-panel {
+  background: rgba(5, 15, 29, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.28);
+  box-shadow: 0 0 15px rgba(0,240,255,0.06) inset, 0 0 10px rgba(0,240,255,0.05);
+  backdrop-filter: blur(14px) saturate(130%);
+}
+
+.tactical-panel-elevated {
+  background: rgba(10, 21, 38, 0.92);
+  border: 1px solid rgba(0, 240, 255, 0.45);
+  box-shadow: 0 0 20px rgba(0,240,255,0.18), inset 0 0 12px rgba(0,240,255,0.05);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* ── Clip-path Chamfer ── */
+.tactical-clip {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+.tactical-clip-sm {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+/* ── Tactical Buttons ── */
+.tactical-btn {
+  position: relative;
+  background: linear-gradient(135deg, rgba(0,240,255,0.12), rgba(0,100,150,0.05));
+  border: 1px solid #00f0ff;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: all 0.25s ease;
+  font-family: 'Orbitron', sans-serif;
+  color: #ffffff;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tactical-btn:hover {
+  background: rgba(0, 240, 255, 0.22);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.tactical-btn:active {
+  transform: translateY(0px);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+}
+
+.tactical-btn-danger {
+  background: rgba(255, 42, 85, 0.14);
+  border-color: #ff2a55;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  animation: strobe-red 1.2s ease-in-out infinite;
+}
+
+.tactical-btn-danger:hover {
+  background: rgba(255, 42, 85, 0.3);
+  box-shadow: 0 0 24px rgba(255, 42, 85, 0.5);
+}
+
+/* ── Text Glow Utilities ── */
+.text-glow-cyan {
+  text-shadow: 0 0 8px rgba(0,240,255,0.7), 0 0 20px rgba(0,240,255,0.35);
+}
+.text-glow-alert {
+  text-shadow: 0 0 8px rgba(255,42,85,0.8), 0 0 20px rgba(255,42,85,0.4);
+}
+.text-glow-amber {
+  text-shadow: 0 0 8px rgba(255,170,0,0.75);
+}
+.text-glow-success {
+  text-shadow: 0 0 8px rgba(0,255,136,0.7);
+}
+
+/* ── Box Glow Utilities ── */
+.glow-cyan {
+  box-shadow: 0 0 14px rgba(0,240,255,0.35), 0 0 4px rgba(0,240,255,0.15);
+}
+.glow-alert {
+  box-shadow: 0 0 14px rgba(255,42,85,0.45), 0 0 4px rgba(255,42,85,0.2);
+}
+.glow-amber {
+  box-shadow: 0 0 14px rgba(255,170,0,0.4);
+}
+
+/* ── Custom Range Sliders ── */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(0, 240, 255, 0.15);
+  height: 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  width: 100%;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 2px;
+  background: #00f0ff;
+  cursor: pointer;
+  box-shadow: 0 0 10px #00f0ff;
+  border: 1px solid #ffffff;
+  transition: transform 0.15s ease;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+input[type=range].slider-amber::-webkit-slider-thumb {
+  background: #ffaa00;
+  box-shadow: 0 0 10px #ffaa00;
+}
+input[type=range].slider-alert::-webkit-slider-thumb {
+  background: #ff2a55;
+  box-shadow: 0 0 10px #ff2a55;
+}
+input[type=range].slider-success::-webkit-slider-thumb {
+  background: #00ff88;
+  box-shadow: 0 0 10px #00ff88;
+}
+
+/* ── Status Chips ── */
+.status-chip {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.status-chip-resolved {
+  border: 1px solid #00ff88;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.08);
+}
+.status-chip-partial {
+  border: 1px solid #ffaa00;
+  color: #ffaa00;
+  background: rgba(255, 170, 0, 0.08);
+}
+.status-chip-failed {
+  border: 1px solid #ff2a55;
+  color: #ff2a55;
+  background: rgba(255, 42, 85, 0.1);
+  animation: strobe-red 1.2s ease-in-out infinite;
+}
+
+/* ── HUD Reticle Rings ── */
+.radar-ring-outer {
+  animation: spin-slow 50s linear infinite;
+  border: 1px dashed rgba(0,240,255,0.25);
+}
+.radar-ring-mid {
+  animation: spin-reverse 38s linear infinite;
+  border: 1px solid rgba(0,240,255,0.18);
+}
+.radar-sweep-arm {
+  animation: radar 4s linear infinite;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(0,240,255,0.18) 30deg, transparent 30deg);
+}
+
+/* ── Animated Heading ── */
+.hud-title {
+  font-family: 'Orbitron', sans-serif;
+  animation: flicker 3s linear infinite;
+}
+
+/* ── Map Incident Pin ── */
+.map-pin-pulse {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* ── Tactical input style ── */
+.tactical-input {
+  background: rgba(0, 5, 12, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-bottom-width: 2px;
+  color: #00f0ff;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  text-align: center;
+}
+.tactical-input::placeholder {
+  color: rgba(0, 240, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.tactical-input:focus {
+  border-color: #00f0ff;
+  box-shadow: 0 0 16px rgba(0,240,255,0.3), inset 0 0 8px rgba(0,240,255,0.06);
+}
+
+/* ── Screen Transition Wrapper ── */
+.screen-wrapper {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Top Status Ticker Bar ── */
+.hud-ticker {
+  background: rgba(5, 14, 27, 0.92);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.22);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+/* ── Leaderboard rank badges ── */
+.rank-gold   { color: #ffd700; text-shadow: 0 0 8px rgba(255,215,0,0.6); }
+.rank-silver { color: #c0c0c0; text-shadow: 0 0 6px rgba(192,192,192,0.4); }
+.rank-bronze { color: #cd7f32; text-shadow: 0 0 6px rgba(205,127,50,0.4); }
+
+/* ── Floating animation for landing globe ── */
+@keyframes float-globe {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-8px) scale(1.01); }
+}
+.globe-float {
+  animation: float-globe 6s ease-in-out infinite;
+}
+
+/* ── Health bar fill animation ── */
+.health-bar-fill {
+  transition: width 1s ease-in-out;
+}
+
+/* ── Slide-in animations for result cards ── */
+.slide-in-result {
+  animation: slide-in-right 0.4s ease forwards;
+}
+
+/* ── Score counter ── */
+.score-counter {
+  font-variant-numeric: tabular-nums;
+  animation: score-count-up 0.5s ease forwards;
+}
+
+/* ── Corner bracket decorations on panels ── */
+.corner-brackets {
+  position: relative;
+}
+.corner-brackets::before,
+.corner-brackets::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(0,240,255,0.55);
+  border-style: solid;
+}
+.corner-brackets::before {
+  top: -1px; left: -1px;
+  border-width: 2px 0 0 2px;
+}
+.corner-brackets::after {
+  bottom: -1px; right: -1px;
+  border-width: 0 2px 2px 0;
+}
