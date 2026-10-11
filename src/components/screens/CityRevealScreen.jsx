@@ -22,68 +22,53 @@ export default function CityRevealScreen({ onNext }) {
   const { state, dispatch } = useGameContext();
 
   useEffect(() => {
-    dispatch({ type: 'ASSIGN_CITY' });
-  }, [dispatch]);
+    if (!state.city) {
+      dispatch({ type: 'ASSIGN_CITY' });
+    }
+  }, [dispatch, state.city]);
 
   const { city } = state;
 
-  if (!city) return (
-    <div className="screen-wrapper flex items-center justify-center">
-      <div className="font-mono text-cyan-400 animate-pulse text-lg tracking-widest">
-        INITIALIZING SECTOR LOCK...
+  if (!city) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center">
+        <div className="font-mono text-cyan-400 animate-pulse text-lg tracking-widest">
+          INITIALIZING SECTOR LOCK...
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const meta    = CITY_COORDS[city.name] || { coords: '—', pop: '—', risk: 'UNKNOWN' };
+  const meta    = CITY_COORDS[city.name] || { coords: '19.0760° N, 72.8777° E', pop: '20.6M', risk: 'LEVEL-4 DELUGE EMERGENCY' };
   const diffCfg = DIFFICULTY_CONFIG[city.difficulty] || DIFFICULTY_CONFIG.easy;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="screen-wrapper flex flex-col"
-    >
+    <div className="relative min-h-screen w-full flex flex-col justify-between overflow-hidden">
       <HudHeader />
 
-      <main className="relative flex-1 flex flex-col items-center justify-center p-4 md:p-8 min-h-[calc(100vh-38px)] overflow-hidden">
-
-        {/* Background grid + glow */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute inset-0 bg-gradient-radial from-transparent via-[#03070d]/50 to-[#03070d]" />
-        </div>
-
-        {/* Outer concentric rings */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0 w-[700px] h-[700px] flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-400/20 animate-[spin-slow_50s_linear_infinite]" />
-          <div className="absolute inset-8 rounded-full border border-cyan-400/15 animate-[spin-reverse_38s_linear_infinite]" />
-          <div className="absolute w-56 h-56 rounded-full border-2 border-red-500/40 animate-ping opacity-20" />
-        </div>
-
+      <main className="relative flex-1 flex flex-col items-center justify-center p-4 md:p-8 min-h-[calc(100vh-38px)]">
         {/* Target Lock Card */}
         <motion.div
-          initial={{ scale: 0.7, opacity: 0, rotateY: 90 }}
-          animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-          transition={{ duration: 0.7, type: 'spring', stiffness: 90 }}
+          initial={{ scale: 0.85, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, type: 'spring', stiffness: 90 }}
           className="relative z-10 w-full max-w-md"
         >
           {/* Scan progress bar */}
-          <div className="mb-4 font-mono text-[10px] text-cyan-400/70 tracking-widest text-center">
-            <span className="animate-pulse">[ TARGET LOCK DETECTED ]</span>
+          <div className="mb-4 font-mono text-[10px] text-cyan-400/80 tracking-widest text-center">
+            <span className="animate-pulse">[ TARGET LOCK CONFIRMED // SECTOR 81 ]</span>
           </div>
 
-          <div className="tactical-panel tactical-clip corner-brackets p-6 md:p-8 rounded">
-
+          <div className="tactical-panel tactical-clip corner-brackets p-6 md:p-8 rounded bg-black/75 backdrop-blur-md border border-cyan-400/35 shadow-[0_0_40px_rgba(0,240,255,0.2)]">
             {/* Zone header */}
             <div className="text-center mb-4">
-              <div className="font-mono text-[11px] text-slate-400 tracking-widest uppercase mb-1">
+              <div className="font-mono text-[11px] text-cyan-400/70 tracking-widest uppercase mb-1">
                 ZONE: INDIA // SECTOR 81
               </div>
               <motion.h1
                 initial={{ opacity: 0, y: -15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.2 }}
                 className="text-5xl md:text-6xl font-black uppercase text-white text-glow-cyan tracking-wider"
                 style={{ fontFamily: 'Orbitron, sans-serif' }}
               >
@@ -105,7 +90,7 @@ export default function CityRevealScreen({ onNext }) {
             </div>
 
             {/* Telemetry grid */}
-            <div className="bg-black/40 border border-cyan-400/15 rounded p-3 font-mono text-xs space-y-2 mb-4">
+            <div className="bg-black/60 border border-cyan-400/20 rounded p-3 font-mono text-xs space-y-2 mb-4">
               {[
                 { label: 'COORDINATES', val: meta.coords, color: '#00f0ff' },
                 { label: 'POP AT RISK',  val: meta.pop,    color: '#ffffff' },
@@ -129,15 +114,20 @@ export default function CityRevealScreen({ onNext }) {
             <button
               id="btn-confirm-city"
               onClick={onNext}
-              className="tactical-btn w-full py-3.5 text-sm font-black tracking-widest"
+              className="tactical-btn w-full py-4 text-base font-black tracking-widest flex items-center justify-center space-x-2 cursor-pointer group"
             >
-              ENGAGE SECTOR DISPATCH
+              <span className="group-hover:tracking-[0.2em] transition-all duration-300">
+                ENGAGE SECTOR DISPATCH
+              </span>
+              <svg className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+              </svg>
             </button>
           </div>
 
           {/* Scan calibration bar */}
           <div className="mt-4 text-center">
-            <p className="text-[10px] font-mono text-cyan-400/50 tracking-widest mb-1">
+            <p className="text-[10px] font-mono text-cyan-400/60 tracking-widest mb-1">
               CALIBRATING ORBITAL DRONE RELAYS & EMERGENCY COMM FREQUENCIES...
             </p>
             <div className="w-64 h-1 bg-slate-800 rounded-full mx-auto overflow-hidden">
@@ -152,6 +142,6 @@ export default function CityRevealScreen({ onNext }) {
           </div>
         </motion.div>
       </main>
-    </motion.div>
+    </div>
   );
 }
