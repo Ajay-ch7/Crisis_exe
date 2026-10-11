@@ -1,136 +1,134 @@
 import { createContext, useContext, useReducer } from 'react';
-import { assignCity, drawDisasters, resetRandomiser } from '../logic/randomiser';
+import { assignCity, buildSchedule, createRng, nextSeed, randomSeed } from '../logic/randomiser.js';
+import {
+  ESCALATION,
+  STARTING_HEALTH,
+  STARTING_RESOURCES,
+  TOTAL_ROUNDS,
+  buildIncidents,
+  disastersPerRound,
+  resolveRound,
+  resupply,
+  sanitiseAllocation
+} from '../logic/gameRules.js';
+import { calcScore } from '../logic/scoreCalc.js';
 
 const GameContext = createContext();
 
-const initialState = {
-  nickname: "",
-  city: null,
-  round: 1,
-  disasters: [],
-  resources: { rescue: 25, medical: 25, food: 25, engineers: 25 },
-  cityHealth: 100,
-  score: 0,
-  gameOver: false,
-  lastResults: [],
-  scoreDetails: null
-};
+function createInitialState(seed) {
+  return {
+    seed,
+    nickname: "",
+    city: null,
+    round: 1,
+    schedule: null,        // disaster ids for every round, fixed once the city is assigned
+    disasters: [],         // this round's incidents (costs already scaled for round, escalation and quirks)
+    disastersRound: 0,     // round the current `disasters` were drawn for
+    resources: { ...STARTING_RESOURCES },
+    cityHealth: STARTING_HEALTH,
+    escalation: 0,         // extra cost applied to upcoming disasters, grows when threats are not contained
+    roundResolved: false,  // true once resources have been deployed this round
+    lastSupply: null,      // units added by the last between-round resupply
+    lastDamage: 0,
+    score: 0,
+    gameOver: false,
+    lastResults: [],
+    history: [],           // every result so far, used for scoring
+    scoreDetails: null
+  };
+}
+
+// Assigns the city and fixes the full disaster schedule from the seed
+function withCity(state) {
+  if (state.city && state.schedule) return state;
+  const rng = createRng(state.seed);
+  const city = state.city ?? assignCity(rng);
+  return { ...state, city, schedule: buildSchedule(rng, city, disastersPerRound()) };
+}
+
+function withDisasters(state) {
+  if (state.disastersRound === state.round) return state;
+  const ready = withCity(state);
+  return {
+    ...ready,
+    disasters: buildIncidents(ready.schedule[ready.round - 1] ?? [], ready.round, ready.city, ready.escalation),
+    disastersRound: ready.round
+  };
+}
 
 function gameReducer(state, action) {
   switch (action.type) {
     case 'SET_NICKNAME':
       return { ...state, nickname: action.payload };
-      
+
     case 'ASSIGN_CITY':
-      return { ...state, city: assignCity() };
-      
+      return withDisasters(state);
+
     case 'DRAW_DISASTERS':
-      return { ...state, disasters: drawDisasters(state.round) };
-      
+      return withDisasters(state);
+
     case 'ALLOCATE': {
-      const allocated = action.payload; // { rescue: 5, ... }
-      
-      // Subtract resources
+      // A round can only be deployed once
+      if (state.roundResolved || state.gameOver) return state;
+
+      const allocated = sanitiseAllocation(action.payload, state.resources); // { rescue: 5, ... }
+
       const newResources = { ...state.resources };
       for (const [key, val] of Object.entries(allocated)) {
         newResources[key] -= val;
       }
 
-      let totalDamage = 0;
-      const results = [];
-
-      // Distribute the allocated resources against disaster requirements
-      let availableForAlloc = { ...allocated };
-      
-      state.disasters.forEach(disaster => {
-        let disasterDamage = 0;
-        let required = 0;
-        let provided = 0;
-
-        for (const [resType, reqAmt] of Object.entries(disaster.baseCost)) {
-          required += reqAmt;
-          const assigned = Math.min(availableForAlloc[resType] || 0, reqAmt);
-          provided += assigned;
-          availableForAlloc[resType] -= assigned;
-        }
-
-        if (required > 0) {
-          const shortfallRatio = (required - provided) / required;
-          if (shortfallRatio > 0) {
-            disasterDamage += shortfallRatio * 20; // up to 20 damage per disaster
-          }
-        }
-
-        // Determine status
-        let status = 'resolved';
-        if (provided === 0) status = 'failed';
-        else if (provided < required) status = 'partial';
-
-        // Apply city quirks (e.g. Mumbai flood hits 40% harder)
-        if (state.city?.quirkEffect && state.city.quirkEffect[disaster.id]) {
-          disasterDamage *= state.city.quirkEffect[disaster.id];
-        } else if (state.city?.quirkEffect?.all) {
-          // just an example of applying global debuff if any
-        }
-
-        totalDamage += disasterDamage;
-
-        results.push({
-          id: disaster.id,
-          name: disaster.name,
-          emoji: disaster.emoji,
-          status,
-          message: status === 'resolved' ? 'Handled flawlessly!' : status === 'partial' ? 'We survived, but it was messy.' : 'Total catastrophe!'
-        });
-      });
-
+      const { results, totalDamage, escalation } = resolveRound(state.disasters, allocated);
       const newHealth = Math.max(0, state.cityHealth - totalDamage);
-      const isGameOver = newHealth === 0;
 
-      return { 
-        ...state, 
+      return {
+        ...state,
         resources: newResources,
         cityHealth: newHealth,
+        escalation: Math.min(ESCALATION.max, state.escalation + escalation),
+        roundResolved: true,
+        lastDamage: totalDamage,
         lastResults: results,
-        gameOver: isGameOver
+        history: [...state.history, ...results],
+        gameOver: newHealth === 0
       };
     }
-      
-    case 'NEXT_ROUND':
-      return { 
-        ...state, 
+
+    case 'NEXT_ROUND': {
+      if (!state.roundResolved || state.gameOver) return state;
+      if (state.round >= TOTAL_ROUNDS) return { ...state, gameOver: true };
+
+      const resources = resupply(state.resources);
+      const lastSupply = {};
+      for (const key of Object.keys(resources)) {
+        lastSupply[key] = resources[key] - state.resources[key];
+      }
+
+      // Next round's disasters are drawn here so the warning screen never shows stale ones
+      return withDisasters({
+        ...state,
         round: state.round + 1,
-        gameOver: state.round + 1 > 3
-      };
-      
-    case 'CALC_SCORE': {
-      // Calculate efficiency and bonuses
-      const base = state.cityHealth;
-      const efficiency = Math.round((state.resources.rescue + state.resources.medical + state.resources.food + state.resources.engineers) * 0.3);
-      
-      // Disaster bonus for completing the simulation
-      const disasterBonus = 10;
-
-      const finalScore = Math.round((base + efficiency + disasterBonus) * (state.city?.multiplier || 1));
-
-      return { 
-        ...state, 
-        score: finalScore,
-        scoreDetails: { base, efficiency, disasterBonus }
-      };
+        resources,
+        lastSupply,
+        roundResolved: false
+      });
     }
-      
+
+    case 'CALC_SCORE': {
+      const { score, details } = calcScore(state);
+      return { ...state, score, scoreDetails: details };
+    }
+
     case 'RESET':
-      resetRandomiser();
-      return { ...initialState };
-      
+      return createInitialState(nextSeed(state.seed));
+
     default:
       return state;
   }
 }
 
 export function GameProvider({ children }) {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+  const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState(randomSeed()));
   return (
     <GameContext.Provider value={{ state, dispatch }}>
       {children}
